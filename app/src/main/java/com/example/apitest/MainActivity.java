@@ -18,13 +18,34 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.http.GET;
+import retrofit2.http.Path;
+import retrofit2.http.Query;
+
 public class MainActivity extends AppCompatActivity {
+
+    // 닉네임 체크를 위한 응답을 받는 INTERFACE만들기
+    interface  RequestCheckNickName{
+        // Get 요청을 주는 주소는 /api/check/nickname.php
+        @GET("/api/check/nickname.php")
+        Call<Retrofit_Class> checkNickname(@Query("nickname") String nickname);
+    }
+
+    private RequestCheckNickName requestNickName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        EditText text = findViewById(R.id.editTextText);
+
+        // HtttpUrLConnection 버튼
         Button button = findViewById(R.id.button);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -34,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
                 StrictMode.setThreadPolicy(policy);
 
                 try {
-                    URL url = new URL("http://192.168.0.11:5600/api/check/nickname.php?nickname=alex");
+                    URL url = new URL("http://192.168.0.11:5600/api/check/nickname.php?nickname=" + text.getText());
                     HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
                     urlConnection.setRequestMethod("GET");
 
@@ -49,11 +70,14 @@ public class MainActivity extends AppCompatActivity {
                         }
                         in.close();
 
+
                         // JSON 파싱
                         JSONObject jsonResponse = new JSONObject(response.toString());
-                        String message = jsonResponse.getString("message");
+                        String message = "HttpUrLConnection : " + jsonResponse.getString("message");
                         boolean result = jsonResponse.getBoolean("result");
                         boolean error = jsonResponse.getBoolean("error");
+
+                        System.out.println("message : " + message);
 
                         // UI 업데이트 (Toast 메시지)
                         runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
@@ -65,5 +89,50 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // retrofit 버튼
+        Button button2 = findViewById(R.id.button2);
+
+        // Retrofit 설정
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://192.168.0.11:5600")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        requestNickName = retrofit.create(RequestCheckNickName.class);
+
+        button2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try{
+                    String nickname = text.getText().toString();
+                    requestNickName.checkNickname(nickname).enqueue(new Callback<Retrofit_Class>() {
+                        @Override
+                        public void onResponse(Call<Retrofit_Class> call, Response<Retrofit_Class> response) {
+
+                            String message = "Retrofit : " + response.body().message.toString();
+                            boolean result = response.body().result.booleanValue();
+                            boolean error = response.body().error.booleanValue();
+
+                            System.out.println("message : " + message);
+
+                            // UI 업데이트 (Toast 메시지)
+                            runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
+
+                        }
+
+                        @Override
+                        public void onFailure(Call<Retrofit_Class> call, Throwable t) {
+
+                        }
+                    });
+                } catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+        });
+
+
     }
+
 }
